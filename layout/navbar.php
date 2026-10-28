@@ -192,7 +192,7 @@ function aria_current(string $class): string {
                     </ul>
                 </li>
 
-                <?php if ($isDirecteur): ?>
+
                 <!-- Menu Paramètres affiché uniquement pour le directeur -->
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="settingsDropdown" role="button"
@@ -202,14 +202,14 @@ function aria_current(string $class): string {
 
                     <ul class="dropdown-menu" aria-labelledby="settingsDropdown">
 
-                        <!-- <?php $a = is_active(['/settings/situation_financiere/'], $uriPath); ?>
+                        <?php $a = is_active(['/activity-taches/'], $uriPath); ?>
                         <li>
                             <a class="dropdown-item <?= $a ?>" <?= aria_current($a) ?>
-                                href="<?= $BASE ?>/settings/situation_financiere/">
-                                Situation financière
+                                href="<?= $BASE ?>/activity-taches/">
+                                Gest. des tâches
                             </a>
-                        </li> -->
-
+                        </li>
+                        <?php if ($isDirecteur): ?>
                         <?php $a = is_active(['/settings/blocage.php'], $uriPath); ?>
                         <li>
                             <a class="dropdown-item <?= $a ?>" <?= aria_current($a) ?>
@@ -217,10 +217,10 @@ function aria_current(string $class): string {
                                 Blocage d'accès
                             </a>
                         </li>
-
+                        <?php endif; ?>
                     </ul>
                 </li>
-                <?php endif; ?>
+
             </ul>
 
             <div class="d-flex align-items-center gap-2">

@@ -123,7 +123,7 @@ try {
             <h1 class="h3 mb-0 text-gray-800"><i class="fa-solid fa-crown text-warning me-2"></i>Tableau de bord Direction</h1>
             <p class="text-muted mb-0 fs-7">Vue globale et indicateurs stratégiques de l'établissement</p>
         </div>
-        <span class="badge bg-primary px-3 py-2 fs-7">Rôle : Directeur</span>
+        <span class="badge bg-primary px-3 py-2 fs-7">Rôle : <?= e($_SESSION['user']['role'] ?? 'Utilisateur') ?></span>
     </div>
 
     <!-- KPIs Carte de statistiques (6 Cartes) -->
