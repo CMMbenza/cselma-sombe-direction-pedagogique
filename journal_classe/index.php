@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($_POST['add_journal'])) {
             $piece_jointe = null;
             if (isset($_FILES['piece_jointe']) && $_FILES['piece_jointe']['error'] === UPLOAD_ERR_OK) {
-                $uploadDir = dirname(__DIR__, 2) . '/uploads/attachement_journal_de_class/';
+                $uploadDir = dirname(__DIR__, 2) . '/../../uploads/attachement_journal_de_class/';
                 if (!is_dir($uploadDir)) {
                     mkdir($uploadDir, 0755, true);
                 }
@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $currentFile = $stmtFile->fetchColumn();
 
             if (isset($_FILES['piece_jointe']) && $_FILES['piece_jointe']['error'] === UPLOAD_ERR_OK) {
-                $uploadDir = dirname(__DIR__, 2) . '/uploads/attachement_journal_de_class/';
+                $uploadDir = dirname(__DIR__, 2) . '/../../uploads/attachement_journal_de_class/';
                 if (!is_dir($uploadDir)) {
                     mkdir($uploadDir, 0755, true);
                 }
@@ -104,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (isset($_FILES['resume_piece_jointe']) && $_FILES['resume_piece_jointe']['error'] === UPLOAD_ERR_OK) {
-            $uploadDir = dirname(__DIR__, 1) . '/uploads/attachement_resume_cours/';
+            $uploadDir = dirname(__DIR__, 1) . '/../../uploads/attachement_resume_cours/';
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }
@@ -139,7 +139,7 @@ if ($action === 'delete_resume' && $id > 0) {
     $stmtFile->execute([$id]);
     $fileToDelete = $stmtFile->fetchColumn();
     if ($fileToDelete) {
-        $path = dirname(__DIR__, 1) . '/uploads/attachement_resume_cours/' . $fileToDelete;
+        $path = dirname(__DIR__, 1) . '/../../uploads/attachement_resume_cours/' . $fileToDelete;
         if (file_exists($path)) {
             unlink($path);
         }
@@ -216,7 +216,7 @@ if ($action === 'delete' && $id > 0) {
     $stmtFile->execute([$id]);
     $fileToDelete = $stmtFile->fetchColumn();
     if ($fileToDelete) {
-        $pathJ = dirname(__DIR__, 2) . '/uploads/attachement_journal_de_class/' . $fileToDelete;
+        $pathJ = dirname(__DIR__, 2) . '/../../uploads/attachement_journal_de_class/' . $fileToDelete;
         if (file_exists($pathJ)) {
             unlink($pathJ);
         }
@@ -227,7 +227,7 @@ if ($action === 'delete' && $id > 0) {
     $resData = $stmtResFile->fetch(PDO::FETCH_ASSOC);
     if ($resData) {
         if ($resData['piece_jointe']) {
-            $pathR = dirname(__DIR__, 1) . '/uploads/attachement_resume_cours/' . $resData['piece_jointe'];
+            $pathR = dirname(__DIR__, 1) . '/../../uploads/attachement_resume_cours/' . $resData['piece_jointe'];
             if (file_exists($pathR)) {
                 unlink($pathR);
             }
@@ -862,7 +862,7 @@ function openResumeModal(data) {
 
     const fileContainer = document.getElementById('res_file_container');
     if (data.resume_piece_jointe) {
-        fileContainer.innerHTML = '<a href="../uploads/attachement_resume_cours/' + encodeURIComponent(data
+        fileContainer.innerHTML = '<a href="../../uploads/attachement_resume_cours/' + encodeURIComponent(data
                 .resume_piece_jointe) +
             '" target="_blank" class="btn btn-sm btn-outline-primary w-100 fw-bold rounded-3">📄 Fichier joint à la leçon (Ouvrir)</a>';
     } else {
