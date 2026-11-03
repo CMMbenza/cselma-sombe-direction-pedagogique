@@ -130,7 +130,7 @@ require_once __DIR__ . '/../layout/navbar.php';
             type="button" class="btn-close" data-bs-dismiss="alert"></button></div><?php endif; ?>
 
     <!-- BLOCS DE SÉLECTION PAR RÔLE & FILTRE DATE -->
-    <div class="row g-3 mb-4">
+    <div class="d-none row g-3 mb-4">
         <div class="col-md-9">
             <div class="row g-2">
                 <div class="col-md-3">
