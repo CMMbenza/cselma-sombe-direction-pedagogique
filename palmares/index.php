@@ -1,39 +1,16 @@
 <?php
+// doc_peda/palmares_trismestre.php (ou index de gestion)
 declare(strict_types=1);
 
 require_once __DIR__.'/../includes/auth.php';
 require_directeur();
 require_once __DIR__.'/../includes/get_annee_scolaire_encours.php';
-require_once __DIR__.'/../layout/header.php';
-require_once __DIR__.'/../layout/navbar.php';
 
 // Params de filtrage
 $q         = trim($_GET['q'] ?? '');
 $trim      = trim($_GET['trim'] ?? '');
 $classe    = (int)($_GET['classe'] ?? 0);
 $annee_val = trim($_GET['annee_val'] ?? ANNEE_SCOLAIRE_LIBELLE); // Libellé par défaut (ex: "2025-2026")
-
-// Données pour les filtres
-$annees_scolaires = $pdo->query("SELECT id, annee_scolaire AS libelle FROM annee_scolaire ORDER BY id DESC")->fetchAll();
-
-$classes = $pdo->query("
-    SELECT c.id, CONCAT(c.description, ' - ', cy.description) AS description 
-    FROM classe c 
-    JOIN cycle cy ON cy.id = c.cycle 
-    ORDER BY c.description
-")->fetchAll();
-
-$trimestres = $pdo->query("
-    SELECT DISTINCT trimestre 
-    FROM palmares_trimestre 
-    ORDER BY trimestre
-")->fetchAll(PDO::FETCH_COLUMN);
-
-$eleves_search = $pdo->query("
-    SELECT DISTINCT CONCAT(nom, ' ', postnom, ' ', prenom) AS nom_complet 
-    FROM eleve 
-    ORDER BY nom, postnom, prenom
-")->fetchAll();
 
 /* ================= REQUÊTE SQL AVEC RANG & ANNÉE SCOLAIRE ================= */
 $where  = ["1=1"];
@@ -91,10 +68,104 @@ $rows = $stmt->fetchAll();
  */
 function formatRang(int $rang, string $genre): string {
     if ($rang === 1) {
-        return ($genre === 'F') ? '1<sup>ère</sup>' : '1<sup>er</sup>';
+        return ($genre === 'F') ? '1ère' : '1er';
     }
-    return $rang . '<sup>ème</sup>';
+    return $rang . 'ème';
 }
+
+/* ================= EXPORT WORD (TABLEAU UNIQUE AVEC TOUTES LES BRANCHES) ================= */
+if (isset($_GET['export']) && $_GET['export'] === 'word') {
+    $filename = "palmares_global_" . date('Y-m-d_H-i-s') . ".doc";
+    
+    header("Content-Type: application/vnd.ms-word; charset=utf-8");
+    header("Content-Disposition: attachment; filename=\"$filename\"");
+    header("Pragma: no-cache");
+    header("Expires: 0");
+
+    echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">';
+    echo '<head><meta charset="utf-8"><title>Palmarès & Détails des Branches</title>';
+    echo '<style>
+            body { font-family: Arial, sans-serif; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            th, td { border: 1px solid #000; padding: 5px 6px; text-align: center; font-size: 11px; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            .text-start { text-align: left; }
+            h2 { text-align: center; margin-bottom: 5px; }
+            p { text-align: center; color: #555; }
+          </style>';
+    echo '</head><body>';
+    echo '<h1 class="text-danger">COMPLEXE SCOLAIRE ELMA SOMBE</h1>';
+    echo '<h2>Palmarès & Classement Global des Élèves</h2>';
+    echo '<p>Année scolaire : ' . htmlspecialchars($annee_val !== '0' ? $annee_val : 'Toutes les années') . '</p>';
+    
+    echo '<table>';
+    echo '<thead>
+            <tr>
+                <th>Place</th>
+                <th class="text-start">Élève</th>
+                <th>Classe</th>
+                <th>Trimestre</th>
+                <th>Langues</th>
+                <th>Anglais</th>
+                <th>Maths</th>
+                <th>Culture</th>
+                <th>Total</th>
+                <th>Pourcentage</th>
+            </tr>
+          </thead>';
+    echo '<tbody>';
+
+    if (empty($rows)) {
+        echo '<tr><td colspan="10">Aucun résultat trouvé.</td></tr>';
+    } else {
+        foreach ($rows as $r) {
+            $nomComplet = htmlspecialchars($r['nom'] . ' ' . $r['postnom'] . ' ' . $r['prenom']);
+            $rangFormat = formatRang((int)$r['rang'], $r['genre'] ?? 'M');
+            
+            echo '<tr>';
+            echo '<td><b>' . $rangFormat . '</b></td>';
+            echo '<td class="text-start">' . $nomComplet . ' (' . htmlspecialchars($r['genre'] ?? '') . ')</td>';
+            echo '<td>' . htmlspecialchars($r['classe_nom']) . '</td>';
+            echo '<td>' . htmlspecialchars($r['trimestre']) . '</td>';
+            echo '<td>' . number_format((float)($r['lang'] ?? 0), 2) . ' <small>/' . number_format((float)($r['max_lang'] ?? 0), 0) . '</small></td>';
+            echo '<td>' . number_format((float)($r['anglais'] ?? 0), 2) . ' <small>/' . number_format((float)($r['max_anglais'] ?? 0), 0) . '</small></td>';
+            echo '<td>' . number_format((float)($r['math'] ?? 0), 2) . ' <small>/' . number_format((float)($r['max_math'] ?? 0), 0) . '</small></td>';
+            echo '<td>' . number_format((float)($r['cult'] ?? 0), 2) . ' <small>/' . number_format((float)($r['max_cult'] ?? 0), 0) . '</small></td>';
+            echo '<td><b>' . number_format((float)$r['total'], 2) . ' <small>/' . number_format((float)$r['max_total'], 0) . '</small></b></td>';
+            echo '<td><b>' . number_format((float)$r['percent'], 2) . '%</b></td>';
+            echo '</tr>';
+        }
+    }
+
+    echo '</tbody></table>';
+    echo '</body></html>';
+    exit;
+}
+
+// Données pour les filtres
+$annees_scolaires = $pdo->query("SELECT id, annee_scolaire AS libelle FROM annee_scolaire ORDER BY id DESC")->fetchAll();
+
+$classes = $pdo->query("
+    SELECT c.id, CONCAT(c.description, ' - ', cy.description) AS description 
+    FROM classe c 
+    JOIN cycle cy ON cy.id = c.cycle 
+    ORDER BY c.description
+")->fetchAll();
+
+$trimestres = $pdo->query("
+    SELECT DISTINCT trimestre 
+    FROM palmares_trimestre 
+    ORDER BY trimestre
+")->fetchAll(PDO::FETCH_COLUMN);
+
+$eleves_search = $pdo->query("
+    SELECT DISTINCT CONCAT(nom, ' ', postnom, ' ', prenom) AS nom_complet 
+    FROM eleve 
+    ORDER BY nom, postnom, prenom
+")->fetchAll();
+
+require_once __DIR__.'/../layout/header.php';
+require_once __DIR__.'/../layout/navbar.php';
 ?>
 
 <style>
@@ -145,7 +216,7 @@ function formatRang(int $rang, string $genre): string {
                 <datalist id="liste-eleves">
                     <?php foreach($eleves_search as $el): ?>
                     <option value="<?= htmlspecialchars($el['nom_complet']) ?>">
-                        <?php endforeach; ?>
+                    <?php endforeach; ?>
                 </datalist>
             </div>
 
@@ -162,7 +233,7 @@ function formatRang(int $rang, string $genre): string {
             </div>
 
             <!-- Filtrer par Classe -->
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <select name="classe" class="form-select">
                     <option value="0">Toutes les classes</option>
                     <?php foreach($classes as $c): ?>
@@ -173,10 +244,15 @@ function formatRang(int $rang, string $genre): string {
                 </select>
             </div>
 
-            <!-- Boutons Actions -->
-            <div class="col-md-2 text-end">
-                <button type="submit" class="btn btn-dark w-100 mb-1">Filtrer</button>
-                <a href="index.php" class="btn btn-sm btn-outline-secondary w-100">Réinitialiser</a>
+            <!-- Boutons Actions & Export Word -->
+            <div class="col-md-3 text-end d-flex gap-1">
+                <button type="submit" class="btn btn-dark w-50">Filtrer</button>
+                <a href="?<?= http_build_query(array_merge($_GET, ['export' => 'word'])) ?>" class="btn btn-primary w-50">
+                    📄 Export Word
+                </a>
+            </div>
+            <div class="col-md-12 text-end">
+                <a href="index.php" class="btn btn-sm btn-outline-secondary">Réinitialiser les filtres</a>
             </div>
         </div>
     </form>
@@ -337,6 +413,11 @@ function openView(id) {
                     <td>Langues</td>
                     <td class="text-center fw-bold">${d.lang ?? 0}</td>
                     <td class="text-center text-muted">${d.max_lang ?? '-'}</td>
+                </tr>
+                <tr>
+                    <td>Anglais</td>
+                    <td class="text-center fw-bold">${d.anglais ?? 0}</td>
+                    <td class="text-center text-muted">${d.max_anglais ?? '-'}</td>
                 </tr>
                 <tr>
                     <td>Mathématiques</td>

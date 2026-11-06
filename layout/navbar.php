@@ -203,17 +203,9 @@ function aria_current(string $class): string {
                     <ul class="dropdown-menu" aria-labelledby="settingsDropdown">
 
                         <?php $a = is_active(['/activity-taches/'], $uriPath); ?>
-                        <?php if ($isDirecteur): ?>
                         <li>
                             <a class="dropdown-item <?= $a ?>" <?= aria_current($a) ?>
-                                href="<?= $BASE ?>/activity-taches/">
-                                Agenda
-                            </a>
-                        </li>
-                         <?php endif; ?>
-                        <li>
-                            <a class="dropdown-item <?= $a ?>" <?= aria_current($a) ?>
-                                href="<?= $BASE ?>/activity-taches/agenda-autre-role.php">
+                                href="<?= $BASE ?>/<?= $isDirecteur ? 'activity-taches/' : 'activity-taches/agenda-autre-role.php' ?>">
                                 Agenda
                             </a>
                         </li>

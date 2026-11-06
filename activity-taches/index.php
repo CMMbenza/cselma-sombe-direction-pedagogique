@@ -35,6 +35,45 @@ if ($action === 'change_status') {
     }
 }
 
+// Action de validation en masse (Valider tout ce qui est affiché dans le tableau)
+if ($action === 'valider_tout' && isset($isDirecteur) && $isDirecteur) {
+    try {
+        // Récupérer les IDs des éléments correspondant aux filtres actuels
+        $subSql = "
+            SELECT t.id 
+            FROM directeur_activite_taches t
+            LEFT JOIN users u ON u.id = t.user_id
+            WHERE 1=1
+        ";
+        $subParams = [];
+
+        if ($role_actif !== 'tous' && $role_actif !== '') {
+            $subSql .= " AND u.role = ?";
+            $subParams[] = $role_actif;
+        }
+
+        if ($filtre_date !== '') {
+            $subSql .= " AND t.date_tache = ?";
+            $subParams[] = $filtre_date;
+        }
+
+        $stmtSub = $pdo->prepare($subSql);
+        $stmtSub->execute($subParams);
+        $ids = $stmtSub->fetchAll(PDO::FETCH_COLUMN);
+
+        if (!empty($ids)) {
+            $inClause = implode(',', array_fill(0, count($ids), '?'));
+            $updateStmt = $pdo->prepare("UPDATE directeur_activite_taches SET status = 'approuvee' WHERE id IN ($inClause)");
+            $updateStmt->execute($ids);
+        }
+
+        header("Location: ?role=" . urlencode($role_actif) . "&filtre_date=" . urlencode($filtre_date) . "&msg=status_updated");
+        exit();
+    } catch (Throwable $e) {
+        $error = "Erreur lors de la validation en masse.";
+    }
+}
+
 // Action de suppression
 if ($action === 'delete') {
     $id = (int)($_GET['id'] ?? 0);
@@ -105,12 +144,12 @@ require_once __DIR__ . '/../layout/navbar.php';
     <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white">
         <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
             <div>
-                <h3 class="fw-bold mb-1 text-dark">📋 Aperçu - Activités & Tâches Journalières</h3>
+                <h3 class="fw-bold mb-1 text-dark">📋 Agenda - Activités & Tâches Journalières</h3>
                 <p class="text-muted mb-0 small">Suivi, gestion et validation des activités du jour par rôle</p>
             </div>
-            <div class="d-flex gap-2">
+            <div class="d-flex gap-2 flex-wrap">
                 <button onclick="exportTableToWord('tableTaches', 'Agenda_Activites_Taches')"
-                    class="btn btn-success rounded-3 px-3 py-2 fw-semibold shadow-sm">
+                    class="btn btn-outline-success rounded-3 px-3 py-2 fw-semibold shadow-sm">
                     📄 Exporter Word / Imprimer
                 </button>
                 <a href="create-update-activity-taches.php"
@@ -292,6 +331,17 @@ require_once __DIR__ . '/../layout/navbar.php';
             </table>
         </div>
     </div>
+
+    <div class="mt-3 d-flex justify-content-end">
+        <?php if (isset($isDirecteur) && $isDirecteur && !empty($taches)): ?>
+        <a href="?role=<?= htmlspecialchars($role_actif) ?>&filtre_date=<?= htmlspecialchars($filtre_date) ?>&action=valider_tout"
+            class="btn btn-success rounded-3 px-3 py-2 fw-semibold shadow-sm text-decoration-none w-30"
+            onclick="return confirm('Voulez-vous vraiment approuver TOUTES les tâches affichées dans ce tableau ?');">
+            ✅ Valider tout
+        </a>
+        <?php endif; ?>
+    </div>
+
 </div>
 
 <!-- MODAL VIEW DETAILS -->
