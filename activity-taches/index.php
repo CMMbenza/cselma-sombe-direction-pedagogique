@@ -36,7 +36,7 @@ if ($action === 'change_status') {
 }
 
 // Action de validation en masse (Valider tout ce qui est affiché dans le tableau)
-if ($action === 'valider_tout' && isset($isDirecteur) && $isDirecteur) {
+if ($action === 'valider_tout') {
     try {
         // Récupérer les IDs des éléments correspondant aux filtres actuels
         $subSql = "
@@ -149,8 +149,8 @@ require_once __DIR__ . '/../layout/navbar.php';
             </div>
             <div class="d-flex gap-2 flex-wrap">
                 <button onclick="exportTableToWord('tableTaches', 'Agenda_Activites_Taches')"
-                    class="btn btn-outline-success rounded-3 px-3 py-2 fw-semibold shadow-sm">
-                    📄 Exporter Word / Imprimer
+                    class="btn btn-success rounded-3 px-3 py-2 fw-semibold shadow-sm">
+                    📄 Exporter Word
                 </button>
                 <a href="create-update-activity-taches.php"
                     class="btn btn-primary rounded-3 px-4 py-2 fw-semibold shadow-sm text-decoration-none">
@@ -333,9 +333,9 @@ require_once __DIR__ . '/../layout/navbar.php';
     </div>
 
     <div class="mt-3 d-flex justify-content-end">
-        <?php if (isset($isDirecteur) && $isDirecteur && !empty($taches)): ?>
+        <?php if (!empty($taches)): ?>
         <a href="?role=<?= htmlspecialchars($role_actif) ?>&filtre_date=<?= htmlspecialchars($filtre_date) ?>&action=valider_tout"
-            class="btn btn-success rounded-3 px-3 py-2 fw-semibold shadow-sm text-decoration-none w-30"
+            class="btn btn-success rounded-3 px-3 py-2 fw-semibold shadow-sm text-decoration-none"
             onclick="return confirm('Voulez-vous vraiment approuver TOUTES les tâches affichées dans ce tableau ?');">
             ✅ Valider tout
         </a>
