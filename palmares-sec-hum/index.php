@@ -40,7 +40,7 @@ if ($classe > 0) {
     $params[] = $classe;
 }
 
-// Calcul du RANG (DENSE_RANK) partitionné par classe, trimestre et anneeScolaire basé sur le pourcentage et le total
+// Calcul du RANG (DENSE_RANK) partitionné avec tri alphabétique pour départager les ex-aequo
 $sql = "
 SELECT 
     p.*,
@@ -49,14 +49,14 @@ SELECT
     p.anneeScolaire AS annee_libelle,
     DENSE_RANK() OVER (
         PARTITION BY p.classe_id, p.trimestre, p.anneeScolaire 
-        ORDER BY p.pourcentage DESC, p.total DESC
+        ORDER BY p.pourcentage DESC, p.total DESC, e.nom ASC, e.postnom ASC, e.prenom ASC
     ) AS rang
 FROM palmares_sec_hum p
 JOIN eleve e ON e.id = p.eleve_id
 JOIN classe c ON c.id = p.classe_id
 JOIN cycle cy ON cy.id = c.cycle
 WHERE " . implode(" AND ", $where) . "
-ORDER BY p.classe_id ASC, p.trimestre ASC, rang ASC
+ORDER BY p.classe_id ASC, p.trimestre ASC, rang ASC, e.nom ASC, e.postnom ASC, e.prenom ASC
 ";
 
 $stmt = $pdo->prepare($sql);
@@ -252,7 +252,7 @@ require_once __DIR__.'/../layout/navbar.php';
                 </a>
             </div>
             <div class="col-md-12 text-end">
-                <a href="palmares_trimestre_sec_humanite.php" class="btn btn-sm btn-outline-secondary">Réinitialiser les filtres</a>
+                <a href="../" class="btn btn-sm btn-secondary">Réinitialiser les filtres</a>
             </div>
         </div>
     </form>
@@ -446,13 +446,14 @@ function openView(id) {
     new bootstrap.Modal(document.getElementById('viewModal')).show();
 }
 
-// Gestion de la modification en AJAX via Switch
+// Correction du chemin de l'appel AJAX pour le bouton Autorisé (toggle)
 document.querySelectorAll('.toggle-switch').forEach(sw => {
     sw.addEventListener('change', async function() {
         let id = this.dataset.id;
 
         try {
-            let response = await fetch('toggle_palmares.php', {
+            let response = new URL('toggle_palmares.php', window.location.href);
+            let res = await fetch(response, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
@@ -460,7 +461,7 @@ document.querySelectorAll('.toggle-switch').forEach(sw => {
                 body: 'id=' + encodeURIComponent(id)
             });
 
-            let data = await response.json();
+            let data = await res.json();
 
             if (!data.success) {
                 alert(data.message || 'Erreur lors du changement de statut.');

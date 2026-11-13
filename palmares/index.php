@@ -12,11 +12,10 @@ $trim      = trim($_GET['trim'] ?? '');
 $classe    = (int)($_GET['classe'] ?? 0);
 $annee_val = trim($_GET['annee_val'] ?? ANNEE_SCOLAIRE_LIBELLE); // Libellé par défaut (ex: "2025-2026")
 
-/* ================= REQUÊTE SQL AVEC RANG & ANNÉE SCOLAIRE ================= */
+/* ================= REQUÊTE SQL AVEC RANG & TRI ALPHABÉTIQUE EN CAS D'ÉGALITÉ ================= */
 $where  = ["1=1"];
 $params = [];
 
-// Filtrage sur la vraie colonne : anneeScolaire
 if ($annee_val !== '' && $annee_val !== '0') {
     $where[]  = "p.anneeScolaire = ?";
     $params[] = $annee_val;
@@ -40,7 +39,7 @@ if ($classe > 0) {
     $params[] = $classe;
 }
 
-// Calcul du RANG (DENSE_RANK) partitionné par classe, trimestre et anneeScolaire
+// Calcul du RANG (DENSE_RANK) avec tri alphabétique pour départager les ex-aequo
 $sql = "
 SELECT 
     p.*,
@@ -49,14 +48,14 @@ SELECT
     p.anneeScolaire AS annee_libelle,
     DENSE_RANK() OVER (
         PARTITION BY p.classe_id, p.trimestre, p.anneeScolaire 
-        ORDER BY p.percent DESC, p.total DESC
+        ORDER BY p.percent DESC, p.total DESC, e.nom ASC, e.postnom ASC, e.prenom ASC
     ) AS rang
 FROM palmares_trimestre p
 JOIN eleve e ON e.id = p.eleve_id
 JOIN classe c ON c.id = p.classe_id
 JOIN cycle cy ON cy.id = c.cycle
 WHERE " . implode(" AND ", $where) . "
-ORDER BY p.classe_id ASC, p.trimestre ASC, rang ASC
+ORDER BY p.classe_id ASC, p.trimestre ASC, rang ASC, e.nom ASC, e.postnom ASC, e.prenom ASC
 ";
 
 $stmt = $pdo->prepare($sql);
@@ -73,7 +72,7 @@ function formatRang(int $rang, string $genre): string {
     return $rang . 'ème';
 }
 
-/* ================= EXPORT WORD (TABLEAU UNIQUE AVEC TOUTES LES BRANCHES) ================= */
+/* ================= EXPORT WORD ================= */
 if (isset($_GET['export']) && $_GET['export'] === 'word') {
     $filename = "palmares_global_" . date('Y-m-d_H-i-s') . ".doc";
     
@@ -174,7 +173,6 @@ require_once __DIR__.'/../layout/navbar.php';
     height: 1.3rem;
     cursor: pointer;
 }
-
 .badge-rang {
     font-size: 0.90rem;
     min-width: 55px;
@@ -186,8 +184,7 @@ require_once __DIR__.'/../layout/navbar.php';
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
             <h4 class="mb-0">📊 Palmarès & Classement des Élèves</h4>
-            <small class="text-muted">Année en cours :
-                <strong><?= htmlspecialchars(ANNEE_SCOLAIRE_LIBELLE) ?></strong></small>
+            <small class="text-muted">Année en cours : <strong><?= htmlspecialchars(ANNEE_SCOLAIRE_LIBELLE) ?></strong></small>
         </div>
         <span class="badge bg-secondary"><?= count($rows) ?> enregistrement(s)</span>
     </div>
@@ -195,24 +192,19 @@ require_once __DIR__.'/../layout/navbar.php';
     <!-- ================= FILTRES ================= -->
     <form method="get" class="card card-body bg-light mb-3 border-0 shadow-sm">
         <div class="row g-2">
-
-            <!-- Filtrer par Année Scolaire (sur le texte/libellé) -->
             <div class="col-md-2">
                 <select name="annee_val" class="form-select fw-bold">
                     <option value="0">Toutes les années</option>
                     <?php foreach($annees_scolaires as $ans): ?>
-                    <option value="<?= htmlspecialchars($ans['libelle']) ?>"
-                        <?= $annee_val === $ans['libelle'] ? 'selected' : '' ?>>
+                    <option value="<?= htmlspecialchars($ans['libelle']) ?>" <?= $annee_val === $ans['libelle'] ? 'selected' : '' ?>>
                         <?= htmlspecialchars($ans['libelle']) ?>
                     </option>
                     <?php endforeach; ?>
                 </select>
             </div>
 
-            <!-- Recherche Élève -->
             <div class="col-md-3">
-                <input type="text" name="q" list="liste-eleves" value="<?= htmlspecialchars($q) ?>" class="form-control"
-                    placeholder="Rechercher un élève..." autocomplete="off">
+                <input type="text" name="q" list="liste-eleves" value="<?= htmlspecialchars($q) ?>" class="form-control" placeholder="Rechercher un élève..." autocomplete="off">
                 <datalist id="liste-eleves">
                     <?php foreach($eleves_search as $el): ?>
                     <option value="<?= htmlspecialchars($el['nom_complet']) ?>">
@@ -220,7 +212,6 @@ require_once __DIR__.'/../layout/navbar.php';
                 </datalist>
             </div>
 
-            <!-- Filtrer par Trimestre -->
             <div class="col-md-2">
                 <select name="trim" class="form-select">
                     <option value="">Tous les trimestres</option>
@@ -232,7 +223,6 @@ require_once __DIR__.'/../layout/navbar.php';
                 </select>
             </div>
 
-            <!-- Filtrer par Classe -->
             <div class="col-md-2">
                 <select name="classe" class="form-select">
                     <option value="0">Toutes les classes</option>
@@ -244,7 +234,6 @@ require_once __DIR__.'/../layout/navbar.php';
                 </select>
             </div>
 
-            <!-- Boutons Actions & Export Word -->
             <div class="col-md-3 text-end d-flex gap-1">
                 <button type="submit" class="btn btn-dark w-50">Filtrer</button>
                 <a href="?<?= http_build_query(array_merge($_GET, ['export' => 'word'])) ?>" class="btn btn-primary w-50">
@@ -282,24 +271,18 @@ require_once __DIR__.'/../layout/navbar.php';
 
                     <?php foreach($rows as $r): ?>
                     <tr>
-                        <!-- PLACE / RANG -->
                         <td class="text-start ps-3 fw-bold">
                             <?php if ($r['rang'] == 1): ?>
-                            <span class="badge bg-warning text-dark badge-rang">🥇
-                                <?= formatRang((int)$r['rang'], $r['genre'] ?? 'M') ?></span>
+                            <span class="badge bg-warning text-dark badge-rang">🥇 <?= formatRang((int)$r['rang'], $r['genre'] ?? 'M') ?></span>
                             <?php elseif ($r['rang'] == 2): ?>
-                            <span class="badge bg-secondary badge-rang">🥈
-                                <?= formatRang((int)$r['rang'], $r['genre'] ?? 'M') ?></span>
+                            <span class="badge bg-secondary badge-rang">🥈 <?= formatRang((int)$r['rang'], $r['genre'] ?? 'M') ?></span>
                             <?php elseif ($r['rang'] == 3): ?>
-                            <span class="badge bg-danger badge-rang">🥉
-                                <?= formatRang((int)$r['rang'], $r['genre'] ?? 'M') ?></span>
+                            <span class="badge bg-danger badge-rang">🥉 <?= formatRang((int)$r['rang'], $r['genre'] ?? 'M') ?></span>
                             <?php else: ?>
-                            <span
-                                class="badge bg-light text-dark border badge-rang"><?= formatRang((int)$r['rang'], $r['genre'] ?? 'M') ?></span>
+                            <span class="badge bg-light text-dark border badge-rang"><?= formatRang((int)$r['rang'], $r['genre'] ?? 'M') ?></span>
                             <?php endif; ?>
                         </td>
 
-                        <!-- ELEVE -->
                         <td class="text-start fw-semibold">
                             <?= htmlspecialchars($r['nom'].' '.$r['postnom'].' '.$r['prenom']) ?>
                             <small class="text-muted"> (<?= htmlspecialchars($r['genre'] ?? '') ?>)</small>
@@ -316,8 +299,7 @@ require_once __DIR__.'/../layout/navbar.php';
                         </td>
 
                         <td>
-                            <span
-                                class="badge bg-<?= $r['percent'] >= 80 ? 'success' : ($r['percent'] >= 50 ? 'primary' : 'danger') ?>">
+                            <span class="badge bg-<?= $r['percent'] >= 80 ? 'success' : ($r['percent'] >= 50 ? 'primary' : 'danger') ?>">
                                 <?= number_format((float)$r['percent'], 2) ?>%
                             </span>
                         </td>
@@ -331,7 +313,6 @@ require_once __DIR__.'/../layout/navbar.php';
                             </div>
                         </td>
 
-                        <!-- ACTIONS -->
                         <td class="text-end pe-3">
                             <button class="btn btn-sm btn-outline-primary" onclick="openView(<?= $r['id'] ?>)">
                                 👁️ Voir
@@ -357,9 +338,7 @@ $details_json = json_encode($rows, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT 
                 <h5 class="modal-title">📋 Fiche Palmarès Élève</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
             </div>
-            <div class="modal-body" id="modal-content">
-                <!-- Rempli en JS -->
-            </div>
+            <div class="modal-body" id="modal-content"></div>
         </div>
     </div>
 </div>
@@ -446,13 +425,15 @@ function openView(id) {
     new bootstrap.Modal(document.getElementById('viewModal')).show();
 }
 
-// Gestion de la modification en AJAX via Switch
+// Correction du chemin de l'appel AJAX pour le bouton Autorisé (toggle)
 document.querySelectorAll('.toggle-switch').forEach(sw => {
     sw.addEventListener('change', async function() {
         let id = this.dataset.id;
 
         try {
-            let response = await fetch('toggle_palmares.php', {
+            // Utilisation d'un chemin relatif robuste vers le script de toggle
+            let response = new URL('toggle_palmares.php', window.location.href);
+            let res = await fetch(response, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
@@ -460,7 +441,7 @@ document.querySelectorAll('.toggle-switch').forEach(sw => {
                 body: 'id=' + encodeURIComponent(id)
             });
 
-            let data = await response.json();
+            let data = await res.json();
 
             if (!data.success) {
                 alert(data.message || 'Erreur lors du changement de statut.');
